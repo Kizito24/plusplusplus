@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Result</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <div class="container text-center mt-5">
+        <h1>Your Score</h1>
+        <p class="display-4">{{ score }}/{{ total }}</p>
+        <a href="/quiz" class="btn btn-primary">Retry Quiz</a>
+        <a href="/" class="btn btn-secondary">Go Home</a>
+    </div>
+</body>
+</html>
