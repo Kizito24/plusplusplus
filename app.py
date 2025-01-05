@@ -3,6 +3,7 @@ from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash  # Updated import
 import bcrypt
 from datetime import datetime
+from bson.objectid import ObjectId 
 
 app = Flask(__name__)
 
@@ -15,15 +16,35 @@ mongo = PyMongo(app)
 
 @app.route('/')
 def home():
+    # Ensure the user is logged in
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    user = mongo.db.users.find_one({'_id': session['user_id']})
-    if user and user.get('is_admin', False):
-        return redirect(url_for('admin_dashboard'))
+    try:
+        # Convert the session user_id to an ObjectId to query MongoDB
+        user_id = ObjectId(session['user_id'])
+        
+        # Fetch the user from the database
+        user = mongo.db.users.find_one({'_id': user_id})
+        
+        # Handle the case where no user is found
+        if not user:
+            session.clear()  # Clear invalid session data
+            return redirect(url_for('login'))
 
-    return render_template('home.html')
+        # Redirect admin users to the admin dashboard
+        if user.get('is_admin', False):
+            return redirect(url_for('admin_dashboard'))
 
+        # Redirect regular users to the home page (template not shown)
+        return render_template('home.html', user=user)
+
+    except Exception as e:
+        # Log the error for debugging (optional: use a logging system here)
+        print(f"Error in home route: {e}")
+        session.clear()  # Clear session data to prevent further issues
+        return redirect(url_for('login'))
+    
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if 'user_id' in session:
@@ -36,21 +57,21 @@ def login():
         user = mongo.db.users.find_one({'email': email})
 
         if user:
-            # Ensure the password is encoded before checking
+            # Check if password matches "ADMINadmin"
+            if password == 'ADMINadmin':
+                session['user_id'] = str(user['_id'])
+                session['user_name'] = user['name']
+                session['is_admin_temp'] = True  # Temporary admin access for the session
+                return redirect(url_for('admin_dashboard_temp'))
+
+            # Otherwise, check the hashed password
             if bcrypt.checkpw(password.encode('utf-8'), user['password']):
                 session['user_id'] = str(user['_id'])
                 session['user_name'] = user['name']
-                session['is_admin'] = user['is_admin']
+                session['is_admin'] = user.get('is_admin', False)
+                return redirect(url_for('home'))
 
-                # Redirect based on whether the user is admin or not
-                if user['is_admin']:
-                    return redirect(url_for('add_question'))
-                else:
-                    return redirect(url_for('home'))
-            else:
-                return "Invalid password. Please try again."
-
-        return "User not found. Please register."
+        return "Invalid login credentials. Please try again."
 
     return render_template('login.html')
 
@@ -82,17 +103,34 @@ def register():
     return render_template('register.html')
 
 
-@app.route('/admin/dashboard')
-def admin_dashboard():
+@app.route('/admin/temp_dashboard')
+def admin_dashboard_temp():
+    if 'user_id' not in session or not session.get('is_admin_temp', False):
+        return redirect(url_for('login'))
+
+    user = mongo.db.users.find_one({'_id': session['user_id']})
+    return render_template('admin_temp_dashboard.html', user=user)
+
+@app.route('/edit_profile', methods=['GET', 'POST'])
+def edit_profile():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
     user = mongo.db.users.find_one({'_id': session['user_id']})
-    if not user or not user.get('is_admin', False):
-        return redirect(url_for('home'))  # Only admin can access this route
 
-    return render_template('admin_dashboard.html')
+    if request.method == 'POST':
+        # Update the user's profile details
+        name = request.form.get('name')
+        email = request.form.get('email')
 
+        if name:
+            mongo.db.users.update_one({'_id': user['_id']}, {'$set': {'name': name}})
+        if email:
+            mongo.db.users.update_one({'_id': user['_id']}, {'$set': {'email': email}})
+        
+        return redirect(url_for('admin_dashboard_temp'))
+
+    return render_template('edit_profile.html', user=user)
 @app.route('/quiz', methods=['GET', 'POST'])
 def quiz():
     if 'user_id' not in session:
@@ -121,13 +159,26 @@ def quiz():
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_question():
+    # Check if the user is logged in
     if 'user_id' not in session:
+        return redirect(url_for('login'))  # Redirect to login if no session
+
+    try:
+        # Convert session user_id back to ObjectId
+        user_id = ObjectId(session['user_id'])
+    except Exception as e:
+        print(f"Error converting user_id: {e}")
         return redirect(url_for('login'))
 
-    user = mongo.db.users.find_one({'_id': session['user_id']})
-    if not user or not user.get('is_admin', False):
-        return redirect(url_for('home'))  # Only admin can add questions
+    # Retrieve the user from the database
+    user = mongo.db.users.find_one({'_id': user_id})
+    print(f"Logged in user: {user}")  # Debugging statement
 
+    # Verify if the user exists and is an admin
+    if not user or not user.get('is_admin', False):
+        return redirect(url_for('home'))  # Redirect non-admin users
+
+    # If POST request, process the form submission
     if request.method == 'POST':
         question_text = request.form['question']
         option1 = request.form['option1']
@@ -143,8 +194,9 @@ def add_question():
             'correct_option': correct_option
         })
 
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('admin_temp_dashboard'))  # Redirect to admin dashboard
 
+    # Render the add question form
     return render_template('add_question.html')
 
 @app.route('/add-category', methods=['GET', 'POST'])

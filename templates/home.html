@@ -8,27 +8,35 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' dominant-baseline='middle' text-anchor='middle' font-size='24'>+++</text></svg>">
 </head>
 <body>
+    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
-            <a class="navbar-brand" href="/">PlusPlusPlus</a>
+            <a class="navbar-brand" href="{{ url_for('home') }}">PlusPlusPlus</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/login">Login</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/register">Register</a>
-                    </li>
+                    {% if 'user_id' in session %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+                        </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
+    
     <div class="container text-center mt-5">
         <h1>Welcome to PlusPlusPlus</h1>
-        <p class="container lead">Ready to test your knowledge and have fun? PlusPlusPlus is your ultimate destination for engaging and interactive quizzes that cover a wide range of topics—from science and technology to history, pop culture, and beyond. Whether you’re here to learn, challenge yourself, or just enjoy a little competition, we’ve got you covered!</p>
+        <p class="container lead">Ready to test your knowledge and have fun?  PlusPlusPlus is your ultimate destination for engaging and interactive quizzes that cover a wide range of courses — from MTS101 to your departmental courses. Whether you’re here to learn, challenge yourself, or just enjoy a little competition, we’ve got you covered!</p>
 
         <a href="/quiz" class="btn btn-success mt-3">Get Started</a>
     </div>
