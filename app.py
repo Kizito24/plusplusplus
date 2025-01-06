@@ -136,26 +136,57 @@ def quiz():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    questions = mongo.db.questions.find()
+    # Fetch all questions from the database
+    questions = list(mongo.db.questions.find())
+
+    # Get the current question index from the session, default to 0
+    current_index = session.get('current_question_index', 0)
+
+    # Initialize or update user answers in the session
+    if 'answers' not in session:
+        session['answers'] = [None] * len(questions)
+
     if request.method == 'POST':
-        score = 0
-        total = len(questions)
-        for question in questions:
-            selected_option = request.form.get(str(question['_id']))
-            if selected_option and int(selected_option) == question['correct_option']:
-                score += 1
+        # Save the selected answer for the current question
+        selected_option = request.form.get('answer')
+        if selected_option is not None:
+            session['answers'][current_index] = int(selected_option)
 
-        # Save quiz attempt
-        mongo.db.attempts.insert_one({
-            'user_id': session['user_id'],
-            'score': score,
-            'total': total,
-            'time_taken': datetime.now(),
-        })
+        # Check if the user clicked "Next" or "Previous"
+        if 'next' in request.form:
+            current_index += 1
+        elif 'previous' in request.form:
+            current_index -= 1
+        elif 'submit' in request.form:
+            # Calculate the score and save the results
+            score = 0
+            for i, question in enumerate(questions):
+                if session['answers'][i] == question['correct_option']:
+                    score += 1
 
-        return render_template('result.html', score=score, total=total)
+            # Save quiz attempt in the database
+            mongo.db.attempts.insert_one({
+                'user_id': session['user_id'],
+                'score': score,
+                'total': len(questions),
+                'time_taken': datetime.now(),
+            })
 
-    return render_template('quiz.html', questions=questions)
+            # Clear session data related to the quiz
+            session.pop('current_question_index', None)
+            session.pop('answers', None)
+
+            return render_template('result.html', score=score, total=len(questions))
+
+        # Update the current question index in the session
+        session['current_question_index'] = current_index
+
+    # Handle edge cases for navigation
+    current_index = max(0, min(current_index, len(questions) - 1))
+
+    # Render the current question
+    current_question = questions[current_index]
+    return render_template('quiz.html', question=current_question, current_index=current_index, total=len(questions))
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_question():
@@ -194,7 +225,7 @@ def add_question():
             'correct_option': correct_option
         })
 
-        return redirect(url_for('admin_temp_dashboard'))  # Redirect to admin dashboard
+        return redirect(url_for('add_question'))  # Redirect to admin dashboard
 
     # Render the add question form
     return render_template('add_question.html')
@@ -218,7 +249,7 @@ def add_category():
             'description': category_description,
         })
 
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('add_category'))
 
     return render_template('add_category.html')
 

@@ -33,32 +33,52 @@
             </div>
         </div>
     </nav>
+
+    <!-- Quiz Section -->
     <div class="container mt-5">
         <h2>Take the Quiz</h2>
-        <form method="POST" action="/quiz">
-            {% for question in questions %}
+        <p>Question {{ current_index + 1 }} of {{ total }}</p>
+
+        <form method="POST">
+            <!-- Display Current Question -->
             <div class="mb-4">
                 <h5>{{ question['question'] }}</h5>
                 <div>
-                    <input type="radio" id="q{{ question['_id'] }}o1" name="{{ question['_id'] }}" value="1">
-                    <label for="q{{ question['_id'] }}o1">{{ question['options'][0] }}</label>
+                    <input type="radio" id="q1" name="answer" value="1" 
+                        {% if session['answers'][current_index] == 1 %}checked{% endif %}>
+                    <label for="q1">{{ question['options'][0] }}</label>
                 </div>
                 <div>
-                    <input type="radio" id="q{{ question['_id'] }}o2" name="{{ question['_id'] }}" value="2">
-                    <label for="q{{ question['_id'] }}o2">{{ question['options'][1] }}</label>
+                    <input type="radio" id="q2" name="answer" value="2" 
+                        {% if session['answers'][current_index] == 2 %}checked{% endif %}>
+                    <label for="q2">{{ question['options'][1] }}</label>
                 </div>
                 <div>
-                    <input type="radio" id="q{{ question['_id'] }}o3" name="{{ question['_id'] }}" value="3">
-                    <label for="q{{ question['_id'] }}o3">{{ question['options'][2] }}</label>
+                    <input type="radio" id="q3" name="answer" value="3" 
+                        {% if session['answers'][current_index] == 3 %}checked{% endif %}>
+                    <label for="q3">{{ question['options'][2] }}</label>
                 </div>
                 <div>
-                    <input type="radio" id="q{{ question['_id'] }}o4" name="{{ question['_id'] }}" value="4">
-                    <label for="q{{ question['_id'] }}o4">{{ question['options'][3] }}</label>
+                    <input type="radio" id="q4" name="answer" value="4" 
+                        {% if session['answers'][current_index] == 4 %}checked{% endif %}>
+                    <label for="q4">{{ question['options'][3] }}</label>
                 </div>
             </div>
-            {% endfor %}
-            <button type="submit" class="btn btn-success">Submit</button>
+
+            <!-- Navigation Buttons -->
+            <div>
+                {% if current_index > 0 %}
+                    <button type="submit" name="previous" class="btn btn-secondary">Previous</button>
+                {% endif %}
+                {% if current_index < total - 1 %}
+                    <button type="submit" name="next" class="btn btn-primary">Next</button>
+                {% else %}
+                    <button type="submit" name="submit" class="btn btn-success">Submit</button>
+                {% endif %}
+            </div>
         </form>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
