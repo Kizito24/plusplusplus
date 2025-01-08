@@ -259,4 +259,4 @@ def logout():
     return redirect(url_for('login'))  # Redirect to the login page after logging out
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
