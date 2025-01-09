@@ -188,6 +188,15 @@ def quiz():
     current_question = questions[current_index]
     return render_template('quiz.html', question=current_question, current_index=current_index, total=len(questions))
 
+@app.route('/quiz/results')
+def quiz_results():
+    if 'quiz_results' not in session:
+        return redirect(url_for('quiz'))
+
+    results = session['quiz_results']
+    return render_template('quiz_results.html', **results)
+
+
 @app.route('/add', methods=['GET', 'POST'])
 def add_question():
     # Check if the user is logged in
@@ -209,8 +218,12 @@ def add_question():
     if not user or not user.get('is_admin', False):
         return redirect(url_for('home'))  # Redirect non-admin users
 
+    # Fetch all categories from the database
+    categories = list(mongo.db.categories.find())
+
     # If POST request, process the form submission
     if request.method == 'POST':
+        category_id = request.form.get('category')
         question_text = request.form['question']
         option1 = request.form['option1']
         option2 = request.form['option2']
@@ -218,17 +231,24 @@ def add_question():
         option4 = request.form['option4']
         correct_option = int(request.form['correct_option'])
 
+        # Validate the selected category
+        if not category_id or not mongo.db.categories.find_one({'_id': ObjectId(category_id)}):
+            flash('Invalid category selected. Please try again.', 'error')
+            return redirect(url_for('add_question'))
+
         # Insert the question into the database
         mongo.db.questions.insert_one({
+            'category_id': ObjectId(category_id),
             'question': question_text,
             'options': [option1, option2, option3, option4],
             'correct_option': correct_option
         })
 
-        return redirect(url_for('add_question'))  # Redirect to admin dashboard
+        flash('Question added successfully!', 'success')
+        return redirect(url_for('add_question'))  # Stay on the add question page
 
-    # Render the add question form
-    return render_template('add_question.html')
+    # Render the add question form, passing categories to the template
+    return render_template('add_question.html', categories=categories)
 
 @app.route('/add-category', methods=['GET', 'POST'])
 def add_category():
@@ -259,4 +279,4 @@ def logout():
     return redirect(url_for('login'))  # Redirect to the login page after logging out
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host='0.0.0.0', debug=False)
