@@ -3,7 +3,9 @@ from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash  # Updated import
 import bcrypt
 from datetime import datetime
-from bson.objectid import ObjectId 
+from bson.objectid import ObjectId
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+
 
 app = Flask(__name__)
 
@@ -34,7 +36,7 @@ def home():
 
         # Redirect admin users to the admin dashboard
         if user.get('is_admin', False):
-            return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('admin_dashboard_temp'))
 
         # Redirect regular users to the home page (template not shown)
         return render_template('home.html', user=user)
@@ -48,32 +50,39 @@ def home():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if 'user_id' in session:
-        return redirect(url_for('home'))
+        return redirect(url_for('home'))  # Redirect if already logged in
 
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
 
+        # Fetch the user from the database
         user = mongo.db.users.find_one({'email': email})
 
         if user:
-            # Check if password matches "ADMINadmin"
-            if password == 'ADMINadmin':
+            # Check if the login is for the admin account with hardcoded credentials
+            if password == "ADMINadmin":
+                # Update the admin in the database to ensure permanent admin access
+                mongo.db.users.update_one(
+                    {'_id': user['_id']},
+                    {'$set': {'is_admin': True}}
+                )
                 session['user_id'] = str(user['_id'])
                 session['user_name'] = user['name']
-                session['is_admin_temp'] = True  # Temporary admin access for the session
+                session['is_admin'] = True  # Permanent admin session
                 return redirect(url_for('admin_dashboard_temp'))
 
             # Otherwise, check the hashed password
             if bcrypt.checkpw(password.encode('utf-8'), user['password']):
                 session['user_id'] = str(user['_id'])
                 session['user_name'] = user['name']
-                session['is_admin'] = user.get('is_admin', False)
+                session['is_admin'] = user.get('is_admin', False)  # Use database value
                 return redirect(url_for('home'))
 
         return "Invalid login credentials. Please try again."
 
     return render_template('login.html')
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -105,32 +114,12 @@ def register():
 
 @app.route('/admin/temp_dashboard')
 def admin_dashboard_temp():
-    if 'user_id' not in session or not session.get('is_admin_temp', False):
+    if 'user_id' not in session or not session.get('is_admin', False):
         return redirect(url_for('login'))
 
     user = mongo.db.users.find_one({'_id': session['user_id']})
     return render_template('admin_temp_dashboard.html', user=user)
 
-@app.route('/edit_profile', methods=['GET', 'POST'])
-def edit_profile():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    user = mongo.db.users.find_one({'_id': session['user_id']})
-
-    if request.method == 'POST':
-        # Update the user's profile details
-        name = request.form.get('name')
-        email = request.form.get('email')
-
-        if name:
-            mongo.db.users.update_one({'_id': user['_id']}, {'$set': {'name': name}})
-        if email:
-            mongo.db.users.update_one({'_id': user['_id']}, {'$set': {'email': email}})
-        
-        return redirect(url_for('admin_dashboard_temp'))
-
-    return render_template('edit_profile.html', user=user)
 @app.route('/quiz', methods=['GET', 'POST'])
 def quiz():
     if 'user_id' not in session:
@@ -301,7 +290,7 @@ def edit_profile():
         )
 
         flash('Profile updated successfully!')
-        return redirect(url_for('admin_dashboard'))  # Redirect to the admin dashboard
+        return redirect(url_for('admin_dashboard_temp'))  # Redirect to the admin dashboard
 
     # Render the edit profile page
     return render_template('edit_profile.html', user=user)
