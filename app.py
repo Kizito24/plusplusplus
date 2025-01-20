@@ -273,6 +273,43 @@ def add_category():
 
     return render_template('add_category.html')
 
+@app.route('/edit_profile', methods=['GET', 'POST'])
+def edit_profile():
+    # Check if the user is logged in
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    try:
+        # Convert session user_id back to ObjectId
+        user_id = ObjectId(session['user_id'])
+    except Exception as e:
+        print(f"Error converting user_id: {e}")
+        return redirect(url_for('login'))
+
+    # Retrieve the current user from the database
+    user = mongo.db.users.find_one({'_id': user_id})
+
+    if request.method == 'POST':
+        # Get form data
+        name = request.form.get('name', '').strip()
+        email = request.form.get('email', '').strip()
+
+        # Update the user's details in the database
+        mongo.db.users.update_one(
+            {'_id': user_id},
+            {'$set': {'name': name, 'email': email}}
+        )
+
+        flash('Profile updated successfully!')
+        return redirect(url_for('admin_dashboard'))  # Redirect to the admin dashboard
+
+    # Render the edit profile page
+    return render_template('edit_profile.html', user=user)
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    return render_template('500.html'), 500
+
 @app.route('/logout')
 def logout():
     session.clear()  # Clear the session to log out the user
